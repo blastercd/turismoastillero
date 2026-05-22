@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tole - Guía IA de El Astillero</title>
+    <style>
+        /* ESTILO PARA LA BANDERA FIJA */
+        .contenedor-bandera-fija {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            z-index: 999999;
+            width: 70px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .contenedor-bandera-fija img {
+            width: 100%;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .contenedor-bandera-fija:hover { transform: scale(1.05); }
+
+        :root {
+            --color-principal: #0d47a1;
+            --color-trainera: #1565c0;
+            --color-tarjeta: rgba(255, 255, 255, 0.95);
+            --texto: #1e293b;
+        }
+
+        html, body {
+            background: url('cartadenavegacion.jpg') no-repeat center center fixed !important;
+            background-size: cover !important;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            min-height: 100vh;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            color: var(--texto);
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        .chat-container {
+            background-color: var(--color-tarjeta);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            max-width: 380px;
+            width: 100%;
+            padding: 14px;
+            box-sizing: border-box;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            margin-bottom: 90px;
+            margin-top: 60px;
+        }
+
+        .mapa-progreso {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+            padding: 8px 6px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            border: 1px solid #cbd5e1;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .nodo-ruta {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.58rem;
+            font-weight: 700;
+            color: #64748b;
+            flex: 1;
+            position: relative;
+            text-align: center;
+        }
+
+        .nodo-ruta:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 13px;
+            left: 50%;
+            width: 100%;
+            height: 3px;
+            background: #e2e8f0;
+            z-index: 1;
+        }
+
+        .nodo-indicador {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #64748b;
+            font-size: 0.75rem;
+            margin-bottom: 4px;
+            z-index: 2;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            border: 1px solid #cbd5e1;
+        }
+
+        .nodo-ruta.completado .nodo-indicador { 
+            background: #10b981; 
+            color: white;
+            border-color: #059669;
+            box-shadow: 0 2px 4px rgba(16,185,129,0.2);
+        }
+        .nodo-ruta.completado { color: #059669; }
+        .nodo-ruta.completado:not(:last-child)::after { background: #10b981; }
+        
+        .nodo-ruta.activo .nodo-indicador { 
+            background: var(--color-principal); 
+            color: white;
+            border-color: #1d4ed8;
+            transform: scale(1.15);
+            box-shadow: 0 3px 6px rgba(13,71,161,0.3);
+        }
+        .nodo-ruta.activo { color: var(--color-principal); }
+
+        .avatar-area {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 6px;
+        }
+
+        .avatar-circulo {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--color-principal), #38bdf8);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.1rem;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .avatar-area h1 {
+            font-size: 1rem;
+            margin: 0;
+            color: var(--color-principal);
+            font-weight: 700;
+        }
+
+        .bocadillo {
+            background-color: #f8fafc;
+            border-radius: 12px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            line-height: 1.4;
+            font-size: 0.85rem;
+            border: 1px solid #e2e8f0;
+            border-top-left-radius: 4px;
+        }
+
+        .bocadillo p { margin: 0; }
+        .bocadillo p + p { margin-top: 6px; }
+
+        .formulario-grupo { margin-bottom: 12px; }
+        label { display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.75rem; color: #475569; }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            box-sizing: border-box;
+        }
+
+        .btn-accion {
+            width: 100%;
+            background-color: var(--color-principal);
+            color: white;
+            border: none;
+            padding: 11px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+            box-sizing: border-box;
+            text-decoration: none;
+        }
+
+        .btn-maps {
+            background-color: #0f766e !important;
+            margin-bottom: 10px;
+        }
+
+        .btn-interactivo {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            margin-bottom: 12px;
+            box-shadow: 0 3px 8px rgba(217,119,6,0.3);
+        }
+
+        .controles-audio { display: flex; gap: 4px; margin-bottom: 10px; }
+        .btn-audio { flex: 1; padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1; background-color: white; font-size: 0.72rem; cursor: pointer; }
+
+        .zona-multimedia {
+            margin: 10px auto;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #cbd5e1;
+            height: 165px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f1f5f9;
+        }
+
+        .imagen-parada { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            object-position: center;
+            display: block; 
+        }
+
+        .video-container-seguro {
+            width: 100%;
+            margin: 10px 0;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #ef4444;
+            position: relative;
+            height: 155px;
+            background: linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.65)), url('https://img.youtube.com/vi/afS7gMyvU7Q/0.jpg') center/cover no-repeat;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-decoration: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .play-circulo {
+            width: 50px;
+            height: 50px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.5);
+            margin-bottom: 6px;
+            transition: transform 0.2s ease;
+        }
+
+        .video-container-seguro:hover .play-circulo {
+            transform: scale(1.1);
+        }
+
+        .play-texto {
+            color: white;
+            font-size: 0.82rem;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.7);
+            background-color: rgba(15, 23, 42, 0.8);
+            padding: 5px 12px;
+            border-radius: 20px;
+        }
+
+        .contenedor-blaster-fijo {
+            position: fixed !important;
+            bottom: 20px !important;
+            right: 20px !important;
+            width: 60px !important;
+            height: 60px !important;
+            z-index: 9999999 !important;
+        }
+
+        .logo-blaster-img {
+            width: 60px !important;
+            height: 60px !important;
+            border-radius: 50% !important;
+            border: 3px solid #ffffff !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4) !important;
+            object-fit: cover !important;
+            cursor: pointer !important;
+        }
+
+        .contenedor-blaster-fijo::before {
+            content: "blastercd@hotmail.com";
+            position: absolute;
+            bottom: 70px;
+            right: 0;
+            background-color: #0f172a;
+            color: #ffffff;
+            padding: 6px 10px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            border-radius: 6px;
+            white-space: nowrap;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
+        }
+
+        .contenedor-blaster-fijo:hover::before {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .oculto { display: none !important; }
+    </style>
+</head>
+<body>
+
+<a href="https://www.astillero.es" target="_blank" class="contenedor-bandera-fija">
+    <img src="banderayescudo.jpg" alt="Ayuntamiento de El Astillero">
+</a>
+
+<div class="chat-container">
+    <div class="mapa-progreso">
+        <div class="nodo-ruta activo" id="mapa-bienvenida">
+            <div class="nodo-indicador">⚓</div>
+            <span>Inicio</span>
+        </div>
+        <div class="nodo-ruta" id="mapa-ayuntamiento">
+            <div class="nodo-indicador">1</div>
+            <span>Ayto.</span>
+        </div>
+        <div class="nodo-ruta" id="mapa-iglesia">
+            <div class="nodo-indicador">2</div>
+            <span>Iglesia</span>
+        </div>
+        <div class="nodo-ruta" id="mapa-muelle">
+            <div class="nodo-indicador">3</div>
+            <span>Muelle</span>
+        </div>
+        <div class="nodo-ruta" id="mapa-puente">
+            <div class="nodo-indicador">4</div>
+            <span>Puente</span>
+        </div>
+        <div class="nodo-ruta" id="mapa-mercado">
+            <div class="nodo-indicador">5</div>
+            <span>Mercado</span>
+        </div>
+        <div class="nodo-ruta" id="mapa-union">
+            <div class="nodo-indicador">6</div>
+            <span>Unión</span>
+        </div>
+        <div class="nodo-ruta" id="mapa-muslera">
+            <div class="nodo-indicador">7</div>
+            <span>Muslera</span>
+        </div>
+    </div>
+    
+    <div id="paso-bienvenida">
+        <div class="avatar-area">
+            <div class="avatar-circulo">⚓</div>
+            <h1>¡Hola! Soy Tole</h1>
+        </div>
+        
+        <div class="controles-audio" style="margin-bottom: 12px;">
+            <button type="button" class="btn-audio" style="background-color: #eff6ff; border-color: #bfdbfe; font-weight: bold;" onclick="reproducirBienvenida()">🔊 Escuchar Bienvenida</button>
+        </div>
+
+        <div class="bocadillo">
+            <p id="texto-bienvenida">¡Qué alegría tenerte por aquí! Mi nombre oficial es Tolete, pero todos en el pueblo me llaman Tole. Voy a ser tu guía personal por las calles de Astillero. Antes de ponernos en marcha y descubrir los secretos de nuestro municipio, necesito conocerte un poco mejor. ¿Me dices tu nombre?</p>
+        </div>
+        <form onsubmit="iniciarTrayecto(event)">
+            <div class="formulario-grupo">
+                <label for="user-name">¿Cómo te llamas?</label>
+                <input type="text" id="user-name" placeholder="Ej. María" required>
+            </div>
+            <button type="submit" class="btn-accion">📍 Compartir ubicación e iniciar ruta</button>
+        </form>
+    </div>
+
+    <div id="paso-trayecto" class="oculto">
+        <div class="avatar-area">
+            <div class="avatar-circulo">⚓</div>
+            <h1 id="titulo-trayecto">Guiándote al destino...</h1>
+        </div>
+        
+        <div id="zona-multimedia-trayecto" class="zona-multimedia oculto">
+            <img id="img-trayecto-dinamica" src="" alt="Elemento en el camino" class="imagen-parada">
+        </div>
+
+        <div class="bocadillo" id="texto-trayecto"></div>
+        
+        <button id="btn-navegacion-maps" class="btn-accion btn-maps" onclick="abrirGoogleMaps()">
+            🚶 ¡Vamos!
+        </button>
+        
+        <div class="controles-audio">
+            <button class="btn-audio" onclick="pausarAudio()">⏸️ Pausar</button>
+            <button class="btn-audio" onclick="reanudarAudio()">▶️ Continuar</button>
+        </div>
+        <button id="btn-llegada-destino" class="btn-accion" style="background-color: #10b981; margin-top: 10px;" onclick="">¡Ya he llegado!</button>
+    </div>
+
+    <div id="paso-ayuntamiento" class="oculto">
+        <div class="avatar-area">
+            <div class="avatar-circulo">🏛️</div>
+            <h1>Parada 1: El Ayuntamiento</h1>
+        </div>
+        <div class="zona-multimedia">
+            <img id="img-ayuntamiento-dinamica" src="Ayuntamiento.jpeg" alt="Ayuntamiento de El Astillero" class="imagen-parada">
+        </div>
+        <button class="btn-accion btn-interactivo" id="btn-viaje-ayuntamiento" onclick="alternarPasadoPresenteAyuntamiento()">⏳ Viajar al Pasado (Ver Ayuntamiento Antiguo)</button>
+        
+        <div class="controles-audio">
+            <button class="btn-audio" onclick="reproducirAudioParada1()">🔊 Escuchar reseña</button>
+            <button class="btn-audio" onclick="pausarAudio()">⏸️ Pausar</button>
+        </div>
+        <div class="bocadillo">
+            <p id="texto-ayuntamiento">Te encuentras ante la Casa Consistorial de Astillero, un majestuoso edificio de estilo ecléctico inaugurado en 1881. Esta edificación refleja fielmente el enorme auge socioeconómico e industrial que experimentó el municipio a finales del siglo diecinueve gracias a la explotación minera de hierro en Peña Cabarga y la febril actividad de sus talleres mecánicos y astilleros. Su destacable fachada con balconadas y torre de reloj se alza hoy como el gran centro administrativo y el punto de encuentro histórico de todos los vecinos.</p>
+        </div>
+        <button class="btn-accion" onclick="irATrayectoIglesia()">Siguiente punto de interés</button>
+    </div>
+
+    <div id="paso-iglesia" class="oculto">
+        <div class="avatar-area">
+            <div class="avatar-circulo">⛪</div>
+            <h1>Parada 2: Iglesia de San José</h1>
+        </div>
+        <div class="zona-multimedia">
+            <img id="img-iglesia-dinamica" src="El_Astillero_-_Iglesia_de_San_Jose_04.jpg" alt="Iglesia de San José" class="imagen-parada">
+        </div>
+        <button class="btn-accion btn-interactivo" onclick="alternarFotosIglesia()">🖼️ Ver Inauguración Histórica / Templo</button>
+        
+        <div class="controles-audio">
+            <button class="btn-audio" onclick="reproducirAudioParada2()">🔊 Escuchar Reseña</button>
+            <button class="btn-audio" onclick="pausarAudio()">⏸️ Pausar</button>
+        </div>
+        <div class="bocadillo">
+            <p id="texto-iglesia">Llegamos a la Iglesia de San José, un bello templo cuya historia está profundamente ligada al crecimiento del municipio. Desde este enclave privilegiado contamos con una panorámica excepcional de nuestra identidad: hacia un lado contemplamos los emblemáticos e históricos astilleros que definen nuestro origen industrial; justo al lado se extiende el concurrido Parque de la Planchada, pulmón verde y social de la villa, y en el entorno destaca también el Colegio Fernando de los Ríos, baluarte educativo de generaciones de astillerenses.</p>
+        </div>
+        <button class="btn-accion" onclick="irATrayectoMuelle()">Siguiente punto de interés</button>
+    </div>
+
+    <div id="paso-muelle" class="oculto">
+        <div class="avatar-area">
+            <div class="avatar-circulo">⚓</div>
+            <h1>Parada 3: Muelle y Pescador</h1>
+        </div>
+        <div class="zona-multimedia">
+            <img src="Monumento al Pescador.jpg" alt="Estatua del Pescador y Muelle" class="imagen-parada">
+        </div>
+        <div class="controles-audio">
+            <button class="btn-audio" onclick="reproducirAudioParada3()">🔊 Escuchar Reseña</button>
+            <button class="btn-audio" onclick="pausarAudio()">⏸️ Pausar</button>
+        </div>
+        <div class="bocadillo">
+            <p id="texto-muelle">Nos encontramos en el emblemático Muelle de Astillero, justo frente a la entrañable Estatua del Pescador. Este rincón es un bellísimo tributo a las raíces marineras de nuestro municipio y a todas aquellas generaciones de hombres y mujeres que dedicaron su vida a la ría. Hoy en día, El Astillero es un municipio moderno y vibrante que supera los 18.000 habitantes, donde el orgullo por nuestro pasado convive con tradiciones muy vivas, como las concurridas fiestas patronales de San José en marzo o las alegres celebraciones en Guarnizo. Un paseo idílico para disfrutar de la brisa norteña.</p>
+        </div>
+        <button class="btn-accion" onclick="irATrayectoPuente()">Siguiente punto de interés</button>
+    </div>
+
+    <div id="paso-puente" class="oculto">
+        <div class="avatar-area">
+            <div class="avatar-circulo">🏗️</div>
+            <h1>Parada 4: Puente de los Ingleses</h1>
+        </div>
+        
+        <div class="zona-multimedia">
+            <img id="img-puente-dinamica" src="p.ingleses hoy.jpg" alt="Puente de los Ingleses hoy" class="imagen-parada">
+        </div>
+        <button class="btn-accion btn-interactivo" id="btn-viaje-tiempo" onclick="alternarPasadoPresentePuente()">⏳ Viajar al Pasado (Ver en 1894)</button>
+
+        <div class="controles-audio">
+            <button class="btn-audio" onclick="reproducirAudioParada4()">🔊 Escuchar Reseña</button>
+            <button class="btn-audio" onclick="pausarAudio()">⏸️ Pausar</button>
+        </div>
+
+        <div class="bocadillo">
+            <p id="texto-puente">¡Contempla el coloso de hierro! El Puente de los Ingleses (antiguo cargadero de la Orconera Iron Ore Co.) es el gran símbolo icónico de El Astillero. Construido a finales del siglo diecinueve, servía para verter los vagones cargados de mineral de hierro de las minas directamente en las bodegas de los barcos mercantes británicos. Pero este rincón no es solo minería; estas aguas son el escenario sagrado de nuestras regatas de traineras. La tripulación azul de Astillero ha escrito páginas gloriosas del remo con sus legendarias victorias en la ría. ¡El auténtico corazón e identidad astillerense!</p>
+        </div>
+
+        <label style="display:block; margin-top: 14px; font-weight: bold; font-size: 0.75rem; color:#475569;">🎥 Ver "El Astillero 4K" en Alta Definición:</label>
+        
+        <a href="https://www.youtube.com/watch?v=afS7gMyvU7Q" target="_blank" rel="noopener noreferrer" class="video-container-seguro">
+            <div class="play-circulo">▶</div>
+            <span class="play-texto">Reproducir en YouTube</span>
+        </a>
+
+        <button class="btn-accion" onclick="irATrayectoMarket()">Siguiente punto de interés</button>
+    </div>
+
+    <div id="paso-mercado" class="oculto">
+        <div class="avatar-area">
+            <div class="avatar-circulo">🛒</div>
+            <h1>Parada 5: Plaza del Mercado</h1>
+        </div>
+        
+        <div class="zona-multimedia">
+            <img id="img-mercado-dinamica" src="plazadelmercadoahora.jpg" alt="Plaza del Mercado hoy" class="imagen-parada">
+        </div>
+        <button class="btn-accion btn-interactivo" id="btn-viaje-mercado" onclick="alternarPasadoPresenteMarket()">⏳ Ver Mercado Antiguo</button>
+
+        <div class="controles-audio">
+            <button class="btn-audio" onclick="reproducirAudioParada5()">🔊 Escuchar Reseña</button>
+            <button class="btn-audio" onclick="pausarAudio()">⏸️ Pausar</button>
+        </div>
+
+        <div class="bocadillo">
+            <p id="texto-mercado">Nos adentramos en el corazón urbano alcanzando la histórica Plaza del Mercado. Este espacio ha sido desde siempre el núcleo de la actividad comercial diaria y el punto de encuentro por excelencia de los astillerenses. ¡Aprovecha este momento ideal para tomar algo en los establecimientos locales de los alrededores, descansar y coger fuerzas antes de continuar hacia el tramo deportivo del recorrido!</p>
+        </div>
+
+        <button class="btn-accion" onclick="irATrayectoUnion()">Siguiente punto de interés</button>
+    </div>
+
+    <div id="paso-union" class="oculto">
+        <div class="avatar-area">
+            <div class="avatar-circulo">⚽</div>
+            <h1>Parada 6: El Unión Club</h1>
+        </div>
+        
+        <div class="zona-multimedia">
+            <img id="img-union-dinamica" src="Union-Club-de-Astillero.jpg" alt="Unión Club de Astillero" class="imagen-parada">
+        </div>
+        <button class="btn-accion btn-interactivo" id="btn-galeria-union" onclick="rotarGaleriaUnion()">🖼️ Ver Fotos Históricas / Equipo</button>
+
+        <div class="controles-audio">
+            <button class="btn-audio" onclick="reproducirAudioParada6()">🔊 Escuchar y Ambientar</button>
+            <button class="btn-audio" onclick="pausarAudio()">⏸️ Pausar</button>
+        </div>
+
+        <div class="bocadillo">
+            <p id="texto-union">¡Bienvenidos al histórico campo de fútbol del Unión Club de Astillero en La Planchada! Fundado en 1922, este club centenario es puro sentimiento verdinegro y una institución deportiva fundamental en el fútbol de Cantabria. Por este césped han pasado generaciones enteras de astillerenses dándolo todo por el equipo de su pueblo, consolidando un legado de esfuerzo y pasión comunitaria inquebrantable.</p>
+        </div>
+
+        <audio id="audio-campo-union" src="campo union.webm" preload="auto"></audio>
+
+        <button class="btn-accion" onclick="irATrayectoMuslera()">Siguiente punto de interés</button>
+    </div>
+
+    <div id="paso-muslera" class="oculto">
+        <div class="avatar-area">
+            <div class="avatar-circulo">🌳</div>
+            <h1>Parada 7: Muslera</h1>
+        </div>
+        
+        <div class="zona-multimedia">
+            <img id="img-muslera-dinamica" src="muslera.jpg" alt="Muslera" class="imagen-parada">
+        </div>
+        <button class="btn-accion btn-interactivo" onclick="rotarGaleriaMuslera()">🖼️ Cambiar Vista de Muslera (Exterior / Interior / Antigua)</button>
+
+        <div class="controles-audio">
+            <button class="btn-audio" onclick="reproducirAudioParada7()">🔊 Escuchar Reseña</button>
+            <button class="btn-audio" onclick="pausarAudio()">⏸️ Pausar</button>
+        </div>
+
+        <div class="bocadillo">
+            <p id="texto-muslera">¡Llegamos al emblemático entorno de Muslera en Guarnizo! Un rincón cargado de un profundo arraigo histórico y vecinal, rodeado de calma y naturaleza, que custodia fielmente las esencias tradicionales del municipio lejos del bullicio industrial. ¡Un broche de oro inmejorable para nuestra travesía!</p>
+        </div>
+
+        <audio id="audio-muslera" src="muslera.webm" preload="auto"></audio>
+
+        <button class="btn-accion" style="background: #475569;" onclick="alert('¡Enhorabuena! Has completado toda la gran ruta urbana, marinera e histórica de El Astillero con Tole.')">Finalizar Ruta</button>
+    </div>
+
+</div>
+
+<div class="contenedor-blaster-fijo">
+    <img src="logo.jpeg" alt="Blaster Creador" class="logo-blaster-img">
+</div>
+
+<script>
+    let sintesisVoz = window.speechSynthesis;
+    let nombreUsuario = "";
+    let destinoActual = ""; // Variable para guardar el destino actual
+    let vozMasculinaSeleccionada = null;
+    let viendoPasadoAyuntamiento = false;
+    let viendoPasadoIglesia = false;
+    let viendoPasadoPuente = false;
+    let viendoPasadoMercado = false;
+    let indiceUnion = 0;
+    const fotosUnion = ['Union-Club-de-Astillero.jpg','unionclubantes.jpg','equipo.jpg','campo de futbol de La Planchada2.jpg'];
+    let indiceMuslera = 0;
+    const fotosMuslera = ['muslera.jpg','muslera dentro.jpg','musleraantigua.jpg'];
+
+    // --- NUEVA FUNCIÓN PARA GESTIONAR UBICACIÓN ---
+    function abrirGoogleMaps() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(pos) {
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
+                // Abre Google Maps calculando la ruta desde tu posición actual
+                const url = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${encodeURIComponent(destinoActual)}&travelmode=walking`;
+                window.open(url, '_blank');
+            }, function() {
+                alert("No pudimos obtener tu ubicación. Abre Google Maps manualmente.");
+            });
+        } else {
+            alert("Geolocalización no soportada.");
+        }
+    }
+
+    function cargarVozMasculina() {
+        if (!sintesisVoz) return;
+        let voces = sintesisVoz.getVoices();
+        let vocesEspanol = voces.filter(v => v.lang.startsWith('es'));
+        let palabrasClaveMasculinas = ['alvaro', 'david', 'pablo', 'male', 'masculino', 'jorge', 'enrique'];
+        for (let voz of vocesEspanol) {
+            let nombreMin = voz.name.toLowerCase();
+            if (palabrasClaveMasculinas.some(p => nombreMin.includes(p))) {
+                vozMasculinaSeleccionada = voz;
+                break;
+            }
+        }
+        if (!vozMasculinaSeleccionada && vocesEspanol.length > 0) vozMasculinaSeleccionada = vocesEspanol[0];
+    }
+    if (typeof speechSynthesis !== 'undefined' && speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = cargarVozMasculina;
+    }
+    cargarVozMasculina();
+
+    function hablar(texto) {
+        if (!sintesisVoz) return;
+        sintesisVoz.cancel();
+        let lectura = new SpeechSynthesisUtterance(texto);
+        lectura.lang = 'es-ES';
+        lectura.rate = 0.95; 
+        if (vozMasculinaSeleccionada) lectura.voice = vozMasculinaSeleccionada;
+        sintesisVoz.speak(lectura);
+    }
+
+    function reproducirBienvenida() { hablar(document.getElementById('texto-bienvenida').innerText); }
+
+    function iniciarTrayecto(event) {
+        event.preventDefault();
+        nombreUsuario = document.getElementById('user-name').value;
+        document.getElementById('paso-bienvenida').classList.add('oculto');
+        document.getElementById('paso-trayecto').classList.remove('oculto');
+        document.getElementById('titulo-trayecto').innerText = `¡Vamos allá, ${nombreUsuario}!`;
+        const texto = `¡Perfecto ${nombreUsuario}! Ya te tengo localizado. Para empezar nuestra experiencia, nos vamos a dirigir hacia el magnífico Ayuntamiento de El Astillero. Mientras caminas hacia allí, déjame que te cuente un poco dónde estás. Astillero tiene un ADN puramente marinero y minero. Desde las gradas de nuestros antiguos astilleros reales se construyeron los barcos más imponentes de la Corona Española hace siglos. Además, el mineral de hierro que bajaba de Peña Cabarga transformó por completo este pueblo, llenándolo de vida, talleres y un ambiente ferroviario e industrial único en Cantabria. Hoy vamos a recorrer esos rincones cargados de historia. ¡Pulsa el botón de abajo y nos vemos en el Ayuntamiento!`;
+        document.getElementById('texto-trayecto').innerHTML = `<p>${texto}</p>`;
+        destinoActual = "Ayuntamiento de El Astillero, Cantabria";
+        document.getElementById('btn-llegada-destino').onclick = irAlAyuntamiento;
+        hablar(texto);
+    }
+
+    function irAlAyuntamiento() {
+        pararTodosLosAudios();
+        actualizarMapa('mapa-ayuntamiento');
+        document.getElementById('paso-trayecto').classList.add('oculto');
+        document.getElementById('paso-ayuntamiento').classList.remove('oculto');
+        reproducirAudioParada1();
+    }
+
+    function irATrayectoIglesia() {
+        pararTodosLosAudios();
+        document.getElementById('paso-ayuntamiento').classList.add('oculto');
+        document.getElementById('paso-trayecto').classList.remove('oculto');
+        document.getElementById('zona-multimedia-trayecto').classList.remove('oculto');
+        document.getElementById('img-trayecto-dinamica').src = 'image_d79e72.jpg';
+        document.getElementById('titulo-trayecto').innerText = "Camino a la Iglesia de San José";
+        const texto = "Nos ponemos en marcha de nuevo dejando atrás el consistorio para subir hacia la Iglesia de San José. Abre bien los ojos en este tramo, porque pasaremos justo por delante del mítico carro de Tiburcio, un auténtico emblema de las costumbres cotidianas del pueblo.";
+        document.getElementById('texto-trayecto').innerHTML = `<p>${texto}</p>`;
+        destinoActual = "Iglesia de San José, El Astillero";
+        document.getElementById('btn-llegada-destino').onclick = irALaIglesia;
+        hablar(texto);
+    }
+
+    function irALaIglesia() {
+        pararTodosLosAudios();
+        actualizarMapa('mapa-iglesia');
+        document.getElementById('paso-trayecto').classList.add('oculto');
+        document.getElementById('paso-iglesia').classList.remove('oculto');
+        reproducirAudioParada2();
+    }
+
+    function irATrayectoMuelle() {
+        pararTodosLosAudios();
+        document.getElementById('paso-iglesia').classList.add('oculto');
+        document.getElementById('paso-trayecto').classList.remove('oculto');
+        document.getElementById('zona-multimedia-trayecto').classList.add('oculto');
+        document.getElementById('titulo-trayecto').innerText = "Rumbo al Muelle";
+        const texto = "Dejamos atrás los muros del templo para asomarnos de nuevo a la costa. Nos dirigimos al Paseo Marítimo, un espacio que hoy disfrutamos para pasear pero que históricamente bullía con barcos, pescadores y redes. Buscaremos la mirada cómplice del Monumento al Pescador.";
+        document.getElementById('texto-trayecto').innerHTML = `<p>${texto}</p>`;
+        destinoActual = "Monumento al Pescador, El Astillero";
+        document.getElementById('btn-llegada-destino').onclick = irAlMuelle;
+        hablar(texto);
+    }
+
+    function irAlMuelle() {
+        pararTodosLosAudios();
+        actualizarMapa('mapa-muelle');
+        document.getElementById('paso-trayecto').classList.add('oculto');
+        document.getElementById('paso-muelle').classList.remove('oculto');
+        reproducirAudioParada3();
+    }
+
+    function irATrayectoPuente() {
+        pararTodosLosAudios();
+        document.getElementById('paso-muelle').classList.add('oculto');
+        document.getElementById('paso-trayecto').classList.remove('oculto');
+        document.getElementById('titulo-trayecto').innerText = "Rumbo al Puente de los Ingleses";
+        const texto = "Avanzamos sintiendo de cerca la brisa de la ría. Nos encaminamos hacia el gran icono industrial de nuestra silueta urbana, testigo incombustible de la época minera y fiel observador de las hazañas deportivas de nuestras tripulaciones de remo.";
+        document.getElementById('texto-trayecto').innerHTML = `<p>${texto}</p>`;
+        destinoActual = "Puente de los Ingleses, El Astillero";
+        document.getElementById('btn-llegada-destino').onclick = irAlPuente;
+        hablar(texto);
+    }
+
+    function irAlPuente() {
+        pararTodosLosAudios();
+        actualizarMapa('mapa-puente');
+        document.getElementById('paso-trayecto').classList.add('oculto');
+        document.getElementById('paso-puente').classList.remove('oculto');
+        reproducirAudioParada4();
+    }
+
+    function irATrayectoMarket() {
+        pararTodosLosAudios();
+        document.getElementById('paso-puente').classList.add('oculto');
+        document.getElementById('paso-trayecto').classList.remove('oculto');
+        document.getElementById('titulo-trayecto').innerText = "Rumbo a la Plaza del Mercado";
+        const texto = "Giramos de nuevo la mirada hacia el centro neurálgico del casco histórico. Nos apartamos momentáneamente de las aguas de la ría para adentrarnos en las animadas calles comerciales que confluyen en nuestro tradicional Mercado Abastos.";
+        document.getElementById('texto-trayecto').innerHTML = `<p>${texto}</p>`;
+        destinoActual = "Plaza del Mercado, El Astillero";
+        document.getElementById('btn-llegada-destino').onclick = irAlMercado;
+        hablar(texto);
+    }
+
+    function irAlMercado() {
+        pararTodosLosAudios();
+        actualizarMapa('mapa-mercado');
+        document.getElementById('paso-trayecto').classList.add('oculto');
+        document.getElementById('paso-mercado').classList.remove('oculto');
+        reproducirAudioParada5();
+    }
+
+    function irATrayectoUnion() {
+        pararTodosLosAudios();
+        document.getElementById('paso-mercado').classList.add('oculto');
+        document.getElementById('paso-trayecto').classList.remove('oculto');
+        document.getElementById('titulo-trayecto').innerText = "Rumbo al Unión Club";
+        const texto = "Con las fuerzas renovadas tras visitar el centro, cruzaremos hacia las inmediaciones de La Planchada para pisar el entorno del club de fútbol que abandera con orgullo los colores de Astillero desde hace más de un siglo.";
+        document.getElementById('texto-trayecto').innerHTML = `<p>${texto}</p>`;
+        destinoActual = "Campo de fútbol La Planchada, El Astillero";
+        document.getElementById('btn-llegada-destino').onclick = irAlUnion;
+        hablar(texto);
+    }
+
+    function irAlUnion() {
+        pararTodosLosAudios();
+        actualizarMapa('mapa-union');
+        document.getElementById('paso-trayecto').classList.add('oculto');
+        document.getElementById('paso-union').classList.remove('oculto');
+        reproducirAudioParada6();
+    }
+
+    function irATrayectoMuslera() {
+        pararTodosLosAudios();
+        document.getElementById('paso-union').classList.add('oculto');
+        document.getElementById('paso-trayecto').classList.remove('oculto');
+        document.getElementById('titulo-trayecto').innerText = "Rumbo a Muslera";
+        const texto = "Dejamos atrás la pasión del césped verdinegro de La Planchada y avanzamos tranquilamente hacia las hermosas inmediaciones de Muslera para descubrir su encanto histórico.";
+        document.getElementById('texto-trayecto').innerHTML = `<p>${texto}</p>`;
+        destinoActual = "Iglesia Nuestra Señora de Muslera, Guarnizo";
+        document.getElementById('btn-llegada-destino').onclick = function() {
+            pararTodosLosAudios();
+            actualizarMapa('mapa-muslera');
+            document.getElementById('paso-trayecto').classList.add('oculto');
+            document.getElementById('paso-muslera').classList.remove('oculto');
+            reproducirAudioParada7();
+        };
+        hablar(texto);
+    }
+
+    function actualizarMapa(nodoId) {
+        document.querySelectorAll('.nodo-ruta').forEach(n => n.classList.remove('activo', 'completado'));
+        const nodos = ['mapa-bienvenida', 'mapa-ayuntamiento', 'mapa-iglesia', 'mapa-muelle', 'mapa-puente', 'mapa-mercado', 'mapa-union', 'mapa-muslera'];
+        let encontrado = false;
+        nodos.forEach(id => {
+            const el = document.getElementById(id);
+            if (id === nodoId) { if(el) el.classList.add('activo'); encontrado = true; }
+            else if (!encontrado) { if(el) el.classList.add('completado'); }
+        });
+    }
+
+    function reproducirAudioParada1() { hablar(document.getElementById('texto-ayuntamiento').innerText); }
+    function reproducirAudioParada2() { hablar(document.getElementById('texto-iglesia').innerText); }
+    function reproducirAudioParada3() { hablar(document.getElementById('texto-muelle').innerText); }
+    function reproducirAudioParada4() { hablar(document.getElementById('texto-puente').innerText); }
+    function reproducirAudioParada5() { hablar(document.getElementById('texto-mercado').innerText); }
+    function reproducirAudioParada6() { const a = document.getElementById('audio-campo-union'); if(a) { a.volume = 0.8; a.play(); } }
+    function reproducirAudioParada7() { const a = document.getElementById('audio-muslera'); if(a) { a.volume = 0.8; a.play(); } }
+    
+    function alternarPasadoPresenteAyuntamiento() {
+        const img = document.getElementById('img-ayuntamiento-dinamica');
+        const btn = document.getElementById('btn-viaje-ayuntamiento');
+        viendoPasadoAyuntamiento = !viendoPasadoAyuntamiento;
+        img.src = viendoPasadoAyuntamiento ? 'ayuntamientoantiguo.jpg' : 'Ayuntamiento.jpeg';
+        btn.innerText = viendoPasadoAyuntamiento ? '🏙️ Volver al Presente' : '⏳ Viajar al Pasado (Ver Ayuntamiento Antiguo)';
+    }
+    
+    function alternarFotosIglesia() {
+        const img = document.getElementById('img-iglesia-dinamica');
+        viendoPasadoIglesia = !viendoPasadoIglesia;
+        img.src = viendoPasadoIglesia ? 'Inauguracion de la Iglesia 02.jpg' : 'El_Astillero_-_Iglesia_de_San_Jose_04.jpg';
+    }
+
+    function alternarPasadoPresentePuente() {
+        const img = document.getElementById('img-puente-dinamica');
+        const btn = document.getElementById('btn-viaje-tiempo');
+        viendoPasadoPuente = !viendoPasadoPuente;
+        img.src = viendoPasadoPuente ? 'puente de los ingleses blog.jpg' : 'p.ingleses hoy.jpg';
+        btn.innerText = viendoPasadoPuente ? '🏙️ Volver al Presente' : '⏳ Viajar al Pasado (Ver en 1894)';
+    }
+
+    function alternarPasadoPresenteMarket() {
+        const img = document.getElementById('img-mercado-dinamica');
+        const btn = document.getElementById('btn-viaje-mercado');
+        viendoPasadoMercado = !viendoPasadoMercado;
+        img.src = viendoPasadoMercado ? 'Astillero Plaza del Mercado004antigua.jpg' : 'plazadelmercadoahora.jpg';
+        btn.innerText = viendoPasadoMercado ? '🏙️ Volver al Presente' : '⏳ Ver Mercado Antiguo';
+    }
+
+    function rotarGaleriaUnion() {
+        indiceUnion = (indiceUnion + 1) % fotosUnion.length;
+        document.getElementById('img-union-dinamica').src = fotosUnion[indiceUnion];
+    }
+    
+    function rotarGaleriaMuslera() {
+        indiceMuslera = (indiceMuslera + 1) % fotosMuslera.length;
+        document.getElementById('img-muslera-dinamica').src = fotosMuslera[indiceMuslera];
+    }
+
+    function pararTodosLosAudios() {
+        if(sintesisVoz) sintesisVoz.cancel();
+        const a1 = document.getElementById('audio-campo-union');
+        const a2 = document.getElementById('audio-muslera');
+        if(a1) { a1.pause(); a1.currentTime = 0; }
+        if(a2) { a2.pause(); a2.currentTime = 0; }
+    }
+
+    function pausarAudio() { 
+        if(sintesisVoz) sintesisVoz.pause(); 
+        let a1 = document.getElementById('audio-campo-union');
+        let a2 = document.getElementById('audio-muslera');
+        if(a1) a1.pause();
+        if(a2) a2.pause();
+    }
+    
+    function reanudarAudio() { 
+        if(sintesisVoz) sintesisVoz.resume(); 
+        let a1 = document.getElementById('audio-campo-union');
+        let a2 = document.getElementById('audio-muslera');
+        if(a1 && !a1.paused) a1.play();
+        if(a2 && !a2.paused) a2.play();
+    }
+</script>
+
+</body>
+</html>
